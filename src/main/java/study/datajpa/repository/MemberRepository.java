@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom {
+public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom, JpaSpecificationExecutor<Member> {
 
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
 
@@ -40,7 +40,7 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
 
     // 페이징
     @Query(value = "select m from Member m") // Team과 left join한 결과와 같음
-    Page<Member> findByAge(int age, Pageable pageable);
+    Page<Member> findByAge(Pageable pageable);
 
     @Modifying(clearAutomatically = true) // .executeUpdate
     @Query("update Member m set m.age = m.age + 1 where m.age >= :age")
@@ -66,4 +66,16 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Member> findLockByUsername(String username);
+
+    // 동적 Projection
+    <T> List<T> findProjectionsByUsername(@Param("username") String username, Class<T> Type); // Spring Data Jpa가 UsernameOnly의 구현체를 자동으로 생성
+
+    @Query(value = "select * from member where username = ?", nativeQuery = true)
+    Member findByNativeQuery(String username);
+
+    @Query(value = "select m.member_id as id, m.username, t.name as teamName " +
+            "from Member m left join team t",
+            countQuery = "select count(*) from member",
+            nativeQuery = true)
+    Page<MemberProjection> findByNativeProjection(Pageable pageable);
 }

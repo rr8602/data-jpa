@@ -6,10 +6,8 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
@@ -207,16 +205,20 @@ class MemberRepositoryTest {
 
         //when
         // Page 인터페이스를 사용하면 totalCount를 구하는 쿼리를 자동으로 날려줌
-        Page<Member> page = memberRepository.findByAge(age, pageRequest); // PageRequest는 Pageable의 구현체, Page는 count 쿼리 결과를 포함하는 페이징 반환 타입
+        Page<Member> page = memberRepository.findByAge(pageRequest); // PageRequest는 Pageable의 구현체, Page는 count 쿼리 결과를 포함하는 페이징 반환 타입
 
         Page<MemberDto> toMap = page.map(m -> new MemberDto(m.getId(), m.getUsername(), null));
 
         //then
         List<Member> content = page.getContent();
+        List<MemberDto> content1 = toMap.getContent();
         long totalElements = page.getTotalElements();
 
         for (Member member : content) {
             System.out.println("member = " + member);
+        }
+        for (MemberDto memberDto : content1) {
+            System.out.println("memberDto = " + memberDto);
         }
         System.out.println("totalElements = " + totalElements);
 
@@ -309,4 +311,122 @@ class MemberRepositoryTest {
     public void callCustom(){
         List<Member> result = memberRepository.findMemberCustom();
     }
-}
+
+    @Test
+    public void specBasic(){
+        //given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member m1 = new Member("m1", 0, teamA);
+        Member m2 = new Member("m2", 0, teamA);
+        em.persist(m1);
+        em.persist(m2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        Specification<Member> spec = MemberSpec.username("m1").and(MemberSpec.teamName("teamA"));
+        List<Member> result = memberRepository.findAll(spec);
+
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void queryByExample(){
+        //given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member m1 = new Member("m1", 0, teamA);
+        Member m2 = new Member("m2", 0, teamA);
+        em.persist(m1);
+        em.persist(m2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        //Probe 생성
+        Member member = new Member("m1");
+        Team team = new Team("teamA"); // 내주보인으로 teamA 가능
+        member.setTeam(team);
+
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withIgnorePaths("age"); // primitive 타입인 int가 null이 아니라서 ignore하는 과정
+
+        Example<Member> example = Example.of(member, matcher);
+
+        List<Member> result = memberRepository.findAll(example);
+
+        assertThat(result.get(0).getUsername()).isEqualTo("m1");
+    }
+
+    @Test
+    public void projections(){
+        //given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member m1 = new Member("m1", 0, teamA);
+        Member m2 = new Member("m2", 0, teamA);
+        em.persist(m1);
+        em.persist(m2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        List<NestedClosedProjections> result = memberRepository.findProjectionsByUsername("m1", NestedClosedProjections.class);
+
+        for (NestedClosedProjections nestedClosedProjections : result) {
+            String username = nestedClosedProjections.getUsername();
+            System.out.println("username = " + username);
+            String teamName = nestedClosedProjections.getTeam().getName();
+            System.out.println("teamName = " + teamName);
+        }
+    }
+
+    @Test
+    public void nativeQuery(){
+        //given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member m1 = new Member("m1", 0, teamA);
+        Member m2 = new Member("m2", 0, teamA);
+        em.persist(m1);
+        em.persist(m2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        Member result = memberRepository.findByNativeQuery("m1");
+        System.out.println("result = " + result);
+    }
+
+    @Test
+    public void nativeQueryProjection(){
+        //given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member m1 = new Member("m1", 0, teamA);
+        Member m2 = new Member("m2", 0, teamA);
+        em.persist(m1);
+        em.persist(m2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        Page<MemberProjection> result = memberRepository.findByNativeProjection(PageRequest.of(0, 10));
+        List<MemberProjection> content = result.getContent();
+        for (MemberProjection memberProjection : content) {
+            System.out.println("memberProjection = " + memberProjection.getUsername());
+            System.out.println("memberProjection = " + memberProjection.getTeamName());
+        }
+    }
+} // PageRequest는 Pageable의 구현체, Page는 count 쿼리 결과를 포함하는 페이징 반환 타입
