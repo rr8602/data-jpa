@@ -56,7 +56,7 @@ class MemberTest {
     }
 
     @Test
-    public void JpaEventBaseEntity() throws Exception {
+    public void jpaEventBaseEntity() throws Exception {
         // given
         Member member = new Member("member1");
         memberRepository.save(member); // @PrePersist

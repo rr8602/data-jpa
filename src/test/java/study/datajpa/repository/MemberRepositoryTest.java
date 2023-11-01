@@ -205,7 +205,7 @@ class MemberRepositoryTest {
 
         //when
         // Page 인터페이스를 사용하면 totalCount를 구하는 쿼리를 자동으로 날려줌
-        Page<Member> page = memberRepository.findByAge(pageRequest); // PageRequest는 Pageable의 구현체, Page는 count 쿼리 결과를 포함하는 페이징 반환 타입
+        Page<Member> page = memberRepository.findByAge(age, pageRequest); // PageRequest는 Pageable의 구현체, Page는 count 쿼리 결과를 포함하는 페이징 반환 타입
 
         Page<MemberDto> toMap = page.map(m -> new MemberDto(m.getId(), m.getUsername(), null));
 
@@ -422,7 +422,7 @@ class MemberRepositoryTest {
         em.clear();
 
         //when
-        Page<MemberProjection> result = memberRepository.findByNativeProjection(PageRequest.of(0, 10));
+        Page<MemberProjection> result = memberRepository.findByNativeProjection(PageRequest.of(0, 10), MemberProjection.class);
         List<MemberProjection> content = result.getContent();
         for (MemberProjection memberProjection : content) {
             System.out.println("memberProjection = " + memberProjection.getUsername());

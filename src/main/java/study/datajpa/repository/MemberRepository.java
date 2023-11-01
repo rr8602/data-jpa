@@ -39,8 +39,12 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
     Optional<Member> findOptionalByUsername(String username); // 단건 Optional
 
     // 페이징
-    @Query(value = "select m from Member m") // Team과 left join한 결과와 같음
-    Page<Member> findByAge(Pageable pageable);
+    @Query(value = "select m from Member m left join m.team t") // Team과 left join한 결과와 같음
+    Page<Member> findByAge(int age, Pageable pageable);
+
+    @Query(value = "select m from Member m",
+            countQuery = "select count(m.username) from Member m")
+    Page<Member> findMemberAllCountBy(Pageable pageable);
 
     @Modifying(clearAutomatically = true) // .executeUpdate
     @Query("update Member m set m.age = m.age + 1 where m.age >= :age")
@@ -64,6 +68,10 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
     @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true")) // @QueryHints : 영속성 컨텍스트에 원본을 저장하지 않아서 더티체킹이 일어나지 않음 (조회 시 사용하면 성능 최적화에 좋으나 많은 차이를 일으키지는 않음)
     Member findReadOnlyByUsername(String username);
 
+    @QueryHints(value = {@QueryHint(name = "org.hibernate.readOnly", value = "true")},
+                    forCounting = true)
+    Page<Member> findByUsername(String name, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Member> findLockByUsername(String username);
 
@@ -77,5 +85,5 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
             "from Member m left join team t",
             countQuery = "select count(*) from member",
             nativeQuery = true)
-    Page<MemberProjection> findByNativeProjection(Pageable pageable);
+    <T> Page<T> findByNativeProjection(Pageable pageable, Class<T> Type); // MemberProjection이 Projection
 }
